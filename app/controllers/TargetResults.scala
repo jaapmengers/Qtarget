@@ -2,6 +2,8 @@ package controllers
 
 import controllers.Requests._
 import play.api.libs.ws.WS
+import play.modules.reactivemongo.json.collection.JSONCollection
+import reactivemongo.bson.BSONObjectID
 import scala.concurrent.duration.DurationInt
 import play.api.libs.json.Json
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
@@ -14,19 +16,13 @@ import scala.util.Try
 import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object Formatters {
-  implicit val hitFormat: Format[Hit] = (
-    (JsPath \ "triggeredBy").format[String] and
-      (JsPath \ "shooter").format[String] and
-      (JsPath \ "timeout").format[Long] and
-      (JsPath \ "time").format[Double]
-    )(Hit.apply, unlift(Hit.unapply))
 
-  implicit val missFormat: Format[Miss] = (
-    (JsPath \ "triggeredBy").format[String] and
-      (JsPath \ "shooter").format[String] and
-      (JsPath \ "timeout").format[Long]
-    )(Miss.apply, unlift(Miss.unapply))
+object JsonFormats {
+  import play.api.libs.json.Json
+  import play.modules.reactivemongo.json.BSONFormats._
+
+  implicit val hitFormat = Json.format[Hit]
+  implicit val missFormat = Json.format[Miss]
 }
 
 object Requests {
@@ -36,15 +32,16 @@ object Requests {
     val timeout: Long
   }
 
-  case class Hit(triggeredBy: String, shooter: String, timeout: Long, time: Double) extends Result
-  case class Miss(triggeredBy: String, shooter: String, timeout: Long) extends Result
+  case class Hit(_id: Option[BSONObjectID], triggeredBy: String, shooter: String, timeout: Long, time: Double) extends Result
+  case class Miss(_id: Option[BSONObjectID], triggeredBy: String, shooter: String, timeout: Long) extends Result
 }
 
 object TargetResults extends Controller with MongoController {
 
   implicit val timeout = 10.seconds
+  import JsonFormats._
 
-  import Formatters._
+  def collection: JSONCollection = db.collection[JSONCollection]("results")
 
   def up(channel_name: String, user_id: String, user_name: String, text: String) = Action.async { implicit request =>
 
@@ -72,16 +69,26 @@ object TargetResults extends Controller with MongoController {
     }
   }
 
-  def hit = Action(BodyParsers.parse.json) { implicit request =>
-    val value = (request.body).as[Requests.Hit]
-    Logger.info(value.toString)
-    Ok
+  def hit = Action.async(BodyParsers.parse.json) { implicit request =>
+    val v = (request.body).as[Requests.Hit]
+
+    for {
+      x <- collection.insert(v)
+    } yield {
+      Logger.info(x.message)
+      Ok
+    }
   }
 
-  def miss = Action(BodyParsers.parse.json) { implicit request =>
-    val value = (request.body).as[Requests.Miss]
-    Logger.info(value.toString)
-    Ok
+  def miss = Action.async(BodyParsers.parse.json) { implicit request =>
+    val v = (request.body).as[Requests.Miss]
+
+    for {
+      x <- collection.insert(v)
+    } yield {
+      Logger.info(x.message)
+      Ok
+    }
   }
 
 }
