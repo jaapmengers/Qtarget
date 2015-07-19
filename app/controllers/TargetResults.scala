@@ -105,8 +105,10 @@ object TargetResults extends Controller with MongoController {
 
     Logger.info(s"Hit: ${v.toString}")
 
+    val shooter = if(v.shooter == "") v.triggeredBy else v.shooter
+
     for {
-      x <- hits.insert(Models.Hit(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, v.time, DateTime.now))
+      x <- hits.insert(Models.Hit(BSONObjectID.generate, v.triggeredBy, shooter.stripPrefix("@"), v.timeout, v.time, DateTime.now))
     } yield {
       Logger.info(x.message)
       Ok
@@ -118,8 +120,10 @@ object TargetResults extends Controller with MongoController {
 
     Logger.info(s"Miss: ${v.toString}")
 
+    val shooter = if(v.shooter == "") v.triggeredBy else v.shooter
+
     for {
-      x <- misses.insert(Models.Miss(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, DateTime.now))
+      x <- misses.insert(Models.Miss(BSONObjectID.generate, v.triggeredBy, shooter.stripPrefix("@"), v.timeout, DateTime.now))
     } yield {
       Logger.info(x.message)
       Ok
