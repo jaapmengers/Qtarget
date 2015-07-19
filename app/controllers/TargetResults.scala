@@ -103,6 +103,8 @@ object TargetResults extends Controller with MongoController {
   def hit = Action.async(BodyParsers.parse.json) { implicit request =>
     val v = (request.body).as[ViewModels.Hit]
 
+    Logger.info(s"Hit: ${v.toString}")
+
     for {
       x <- hits.insert(Models.Hit(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, v.time, DateTime.now))
     } yield {
@@ -113,6 +115,8 @@ object TargetResults extends Controller with MongoController {
 
   def miss = Action.async(BodyParsers.parse.json) { implicit request =>
     val v = (request.body).as[ViewModels.Miss]
+
+    Logger.info(s"Miss: ${v.toString}")
 
     for {
       x <- misses.insert(Models.Miss(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, DateTime.now))
