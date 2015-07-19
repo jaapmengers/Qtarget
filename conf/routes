@@ -2,8 +2,8 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-
 GET         /api/up          controllers.TargetResults.up(channel_name, user_id, user_name, text)
 POST        /api/hit         controllers.TargetResults.hit
 POST        /api/miss        controllers.TargetResults.miss
 GET         /api/ranking     controllers.TargetResults.ranking
+GET         /api/stats       controllers.TargetResults.stats(name)

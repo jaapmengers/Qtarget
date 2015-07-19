@@ -7,6 +7,7 @@ import play.modules.reactivemongo.json.collection.JSONCollection
 import reactivemongo.api.{ReadPreference}
 import reactivemongo.bson.{BSONString, BSONDocument, BSONObjectID}
 import reactivemongo.core.commands.Group
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import play.api.libs.json.Json
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
@@ -14,7 +15,7 @@ import play.api.Logger
 import play.api.libs.json._
 import play.modules.reactivemongo.json._, ImplicitBSONHandlers._
 import play.modules.reactivemongo.json.BSONFormats._
-import play.api.mvc.{BodyParsers, Action, Controller}
+import play.api.mvc.{Result, BodyParsers, Action, Controller}
 import play.modules.reactivemongo.{MongoController}
 import scala.util.Try
 import play.api.Play.current
@@ -55,18 +56,44 @@ object TargetResults extends Controller with MongoController {
     }
   }
 
+  private def msToS(ms: Long) = {
+    "%1.2f" format ms / 1000f
+  }
+
+  def stats(name: String) = Action.async { implicit request =>
+
+    def pad(s1: String, s2: String) = s1.padTo(50, " ").mkString + s2
+
+    name.stripPrefix("@").trim match {
+      case "" => Future.successful(BadRequest("Geef een naam mee"))
+      case n: String => for {
+        h <- hits.find(BSONDocument("shooter" -> n)).cursor[Models.Hit](ReadPreference.primary).collect[List]()
+        m <- misses.count(selector = Some(Json.obj("shooter" -> n)))
+        bestTime = pad("Best time:", msToS(h.map(_.time).min) + "s")
+        hits = pad("Hits:", h.length.toString)
+        misses = pad("Misses:", m.toString)
+      } yield Ok(
+        s"""```
+           |Stats for $name
+           |$bestTime
+           |$hits
+           |$misses
+           |```""".stripMargin
+        )
+    }
+  }
+
   def ranking = Action.async { implicit request =>
     def makeResult(t: (Models.Hit, Int)) = {
-      val timeInSecondString = "%1.2f" format t._1.time / 1000f
-      s"${t._2 + 1}. ${t._1.shooter}".padTo(50, " ").mkString + s"${timeInSecondString}s"
+      s"${t._2 + 1}. ${t._1.shooter}".padTo(50, " ").mkString + s"${msToS(t._1.time)}s"
     }
 
     for {
-      x <- hits
+      h <- hits
             .genericQueryBuilder
             .cursor[Models.Hit](ReadPreference.primary)
             .collect[List]()
-      grouped = x.groupBy(_.shooter).map(_._2.head).toList.sortBy(_.time)
+      grouped = h.groupBy(_.shooter).map(_._2.head).toList.sortBy(_.time)
     } yield Ok(s"""```
         |Current ranking
         |${grouped.zipWithIndex.map(makeResult).mkString(s"\n")}
