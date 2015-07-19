@@ -20,6 +20,6 @@ object Models {
     val timeout: Long
     val registeredOn: DateTime
   }
-  case class Hit(_id: BSONObjectID, triggeredBy: String, shooter: String, timeout: Long, time: Double, registeredOn: DateTime) extends Result
+  case class Hit(_id: BSONObjectID, triggeredBy: String, shooter: String, timeout: Long, time: Long, registeredOn: DateTime) extends Result
   case class Miss(_id: BSONObjectID, triggeredBy: String, shooter: String, timeout: Long, registeredOn: DateTime) extends Result
 }

@@ -5,7 +5,7 @@ import org.joda.time.DateTime
 import reactivemongo.bson.BSONObjectID
 
 object ViewModels {
-  case class Hit(triggeredBy: String, shooter: String, timeout: Long, time: Double)
+  case class Hit(triggeredBy: String, shooter: String, timeout: Long, time: Long)
   case class Miss(triggeredBy: String, shooter: String, timeout: Long)
 }
 
