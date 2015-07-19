@@ -1,47 +1,33 @@
 package controllers
 
-import controllers.Requests._
+import models.{Models, ViewModels}
+import org.joda.time.DateTime
 import play.api.libs.ws.WS
 import play.modules.reactivemongo.json.collection.JSONCollection
-import reactivemongo.bson.BSONObjectID
+import reactivemongo.api.{ReadPreference}
+import reactivemongo.bson.{BSONString, BSONDocument, BSONObjectID}
+import reactivemongo.core.commands.Group
 import scala.concurrent.duration.DurationInt
 import play.api.libs.json.Json
 import play.api.libs.json.Json.toJsFieldJsValueWrapper
-import play.api.libs.functional.syntax._
 import play.api.Logger
 import play.api.libs.json._
+import play.modules.reactivemongo.json._, ImplicitBSONHandlers._
+import play.modules.reactivemongo.json.BSONFormats._
 import play.api.mvc.{BodyParsers, Action, Controller}
 import play.modules.reactivemongo.{MongoController}
 import scala.util.Try
 import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
-
-
-object JsonFormats {
-  import play.api.libs.json.Json
-  import play.modules.reactivemongo.json.BSONFormats._
-
-  implicit val hitFormat = Json.format[Hit]
-  implicit val missFormat = Json.format[Miss]
-}
-
-object Requests {
-  sealed trait Result{
-    val triggeredBy: String
-    val shooter: String
-    val timeout: Long
-  }
-
-  case class Hit(_id: Option[BSONObjectID], triggeredBy: String, shooter: String, timeout: Long, time: Double) extends Result
-  case class Miss(_id: Option[BSONObjectID], triggeredBy: String, shooter: String, timeout: Long) extends Result
-}
+import models.ViewModelFormats._
+import models.ModelFormats._
 
 object TargetResults extends Controller with MongoController {
 
   implicit val timeout = 10.seconds
-  import JsonFormats._
 
-  def collection: JSONCollection = db.collection[JSONCollection]("results")
+  def hits: JSONCollection = db.collection[JSONCollection]("hits")
+  def misses: JSONCollection = db.collection[JSONCollection]("misses")
 
   def up(channel_name: String, user_id: String, user_name: String, text: String) = Action.async { implicit request =>
 
@@ -69,11 +55,26 @@ object TargetResults extends Controller with MongoController {
     }
   }
 
-  def hit = Action.async(BodyParsers.parse.json) { implicit request =>
-    val v = (request.body).as[Requests.Hit]
+  def ranking = Action.async { implicit request =>
+    def makeResult(t: (Models.Hit, Int)) = s"${t._2 + 1}. ${t._1.shooter} \t\t\t ${t._1.time}s"
 
     for {
-      x <- collection.insert(v)
+      x <- hits
+            .genericQueryBuilder
+            .cursor[Models.Hit](ReadPreference.primary)
+            .collect[List]()
+      grouped = x.groupBy(_.shooter).map(_._2.head).toList.sortBy(_.time)
+    } yield Ok(s"""```
+        |Current ranking
+        |${grouped.zipWithIndex.map(makeResult).mkString(s"\n")}
+        |```""".stripMargin)
+  }
+
+  def hit = Action.async(BodyParsers.parse.json) { implicit request =>
+    val v = (request.body).as[ViewModels.Hit]
+
+    for {
+      x <- hits.insert(Models.Hit(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, v.time, DateTime.now))
     } yield {
       Logger.info(x.message)
       Ok
@@ -81,10 +82,10 @@ object TargetResults extends Controller with MongoController {
   }
 
   def miss = Action.async(BodyParsers.parse.json) { implicit request =>
-    val v = (request.body).as[Requests.Miss]
+    val v = (request.body).as[ViewModels.Miss]
 
     for {
-      x <- collection.insert(v)
+      x <- misses.insert(Models.Miss(BSONObjectID.generate, v.triggeredBy, v.shooter.stripPrefix("@"), v.timeout, DateTime.now))
     } yield {
       Logger.info(x.message)
       Ok
