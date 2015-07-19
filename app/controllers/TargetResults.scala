@@ -56,7 +56,7 @@ object TargetResults extends Controller with MongoController {
   }
 
   def ranking = Action.async { implicit request =>
-    def makeResult(t: (Models.Hit, Int)) = s"${t._2 + 1}. ${t._1.shooter} \t\t\t ${t._1.time}s"
+    def makeResult(t: (Models.Hit, Int)) = s"${t._2 + 1}. ${t._1.shooter}".padTo(50, " ") + s"${t._1.time}s"
 
     for {
       x <- hits
