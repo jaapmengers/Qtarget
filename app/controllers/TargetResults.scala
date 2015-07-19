@@ -69,7 +69,7 @@ object TargetResults extends Controller with MongoController {
       case n: String => for {
         h <- hits.find(BSONDocument("shooter" -> n)).cursor[Models.Hit](ReadPreference.primary).collect[List]()
         m <- misses.count(selector = Some(Json.obj("shooter" -> n)))
-        bestTime = pad("Best time:", msToS(h.map(_.time).min) + "s")
+        bestTime = pad("Best time:", if(h.length < 1) "n/a" else msToS(h.map(_.time).min) + "s")
         hits = pad("Hits:", h.length.toString)
         misses = pad("Misses:", m.toString)
       } yield Ok(
