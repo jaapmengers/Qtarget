@@ -60,11 +60,11 @@ object TargetResults extends Controller with MongoController {
     "%1.2f" format ms / 1000f
   }
 
-  def stats(name: String) = Action.async { implicit request =>
+  def stats(text: String) = Action.async { implicit request =>
 
     def pad(s1: String, s2: String) = s1.padTo(50, " ").mkString + s2
 
-    name.stripPrefix("@").trim match {
+    text.stripPrefix("@").trim match {
       case "" => Future.successful(BadRequest("Geef een naam mee"))
       case n: String => for {
         h <- hits.find(BSONDocument("shooter" -> n)).cursor[Models.Hit](ReadPreference.primary).collect[List]()
@@ -74,7 +74,7 @@ object TargetResults extends Controller with MongoController {
         misses = pad("Misses:", m.toString)
       } yield Ok(
         s"""```
-           |Stats for $name
+           |Stats for $n
            |$bestTime
            |$hits
            |$misses
