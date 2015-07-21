@@ -43,7 +43,7 @@ object TargetResults extends Controller with MongoController {
     val data = Json.obj(
       "timeout" -> timeout,
       "triggeredBy" -> user_name,
-      "shooter" -> shooter
+      "shooter" -> (if(shooter == "") user_name else shooter)
     )
 
     Logger.info(s"Sending to imp: ${data.toString}")
