@@ -93,7 +93,10 @@ object TargetResults extends Controller with MongoController {
             .genericQueryBuilder
             .cursor[Models.Hit](ReadPreference.primary)
             .collect[List]()
-      grouped = h.groupBy(_.shooter).map(_._2.head).toList.sortBy(_.time)
+      grouped = h
+        .groupBy(_.shooter)
+        .map(_._2.minBy(_.time))
+        .toList.sortBy(_.time)
     } yield Ok(s"""```
         |Current ranking
         |${grouped.zipWithIndex.map(makeResult).mkString(s"\n")}
