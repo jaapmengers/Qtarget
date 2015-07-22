@@ -1,5 +1,7 @@
 package controllers
 
+import achievements._
+import akka.actor.{Props, ActorSystem}
 import models.{Models, ViewModels}
 import org.joda.time.DateTime
 import play.api.libs.ws.WS
@@ -26,6 +28,9 @@ import models.ModelFormats._
 object TargetResults extends Controller with MongoController {
 
   implicit val timeout = 10.seconds
+
+  val system = ActorSystem("example")
+  val dispatcher = system.actorOf(Props[AchievementDispatcher])
 
   def hits: JSONCollection = db.collection[JSONCollection]("hits")
   def misses: JSONCollection = db.collection[JSONCollection]("misses")
@@ -103,10 +108,22 @@ object TargetResults extends Controller with MongoController {
         |```""".stripMargin)
   }
 
+  def ping = Action { implicit request =>
+    dispatcher ! Print("@jaapm")
+    Ok
+  }
+
+  def boom = Action { implicit request =>
+    dispatcher ! Boom("@jaapm")
+    Ok
+  }
+
   def hit = Action.async(BodyParsers.parse.json) { implicit request =>
     val v = (request.body).as[ViewModels.Hit]
 
     Logger.info(s"Hit: ${v.toString}")
+
+    dispatcher ! achievements.Hit(v.shooter, v.time)
 
     val shooter = if(v.shooter == "") v.triggeredBy else v.shooter
 

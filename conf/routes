@@ -7,3 +7,5 @@ POST        /api/hit         controllers.TargetResults.hit
 POST        /api/miss        controllers.TargetResults.miss
 GET         /api/ranking     controllers.TargetResults.ranking
 GET         /api/stats       controllers.TargetResults.stats(text)
+GET         /api/print       controllers.TargetResults.ping
+GET         /api/boom        controllers.TargetResults.boom

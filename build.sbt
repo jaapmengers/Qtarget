@@ -9,7 +9,8 @@ scalaVersion := "2.11.1"
 libraryDependencies ++= Seq(jdbc, anorm, cache, ws)
 
 resolvers ++= Seq(
-  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+  "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+  "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/releases"
 )
 
 libraryDependencies ++= Seq(
@@ -20,5 +21,7 @@ libraryDependencies ++= Seq(
   "org.webjars" 			% 	"html5shiv" 				% "3.7.0",
   "org.webjars" 			% 	"respond" 					% "1.4.2",
   "org.julienrf" %% "play-json-variants" % "2.0",
-  "com.github.nscala-time" %% "nscala-time" % "1.8.0"
+  "com.github.nscala-time" %% "nscala-time" % "1.8.0",
+  "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.10",
+  "com.github.ironfish" %% "akka-persistence-mongo-casbah"  % "0.7.5" % "compile"
 )
