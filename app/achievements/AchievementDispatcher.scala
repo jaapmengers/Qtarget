@@ -10,7 +10,7 @@ case class Miss(shooter: String) extends Result
 case class Print(shooter: String)
 case class Boom(shooter: String)
 
-class AchievementDispatcher extends Actor{
+class AchievementDispatcher extends Actor {
 
   var actors = Map.empty[String, ActorRef]
 

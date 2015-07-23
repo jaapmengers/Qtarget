@@ -12,7 +12,7 @@ object PersonalAchievementActor {
   def props(shooterName: String): Props = Props(new PersonalAchievementActor(shooterName))
 }
 
-class PersonalAchievementActor(shooterName: String) extends PersistentActor{
+class PersonalAchievementActor(shooterName: String) extends PersistentActor {
 
   var state = PersonalAchievementState()
 

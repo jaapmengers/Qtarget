@@ -4,6 +4,7 @@ import achievements._
 import akka.actor.{Props, ActorSystem}
 import models.{Models, ViewModels}
 import org.joda.time.DateTime
+import play.api.libs.concurrent.Akka
 import play.api.libs.ws.WS
 import play.modules.reactivemongo.json.collection.JSONCollection
 import reactivemongo.api.{ReadPreference}
@@ -29,8 +30,7 @@ object TargetResults extends Controller with MongoController {
 
   implicit val timeout = 10.seconds
 
-  val system = ActorSystem("example")
-  val dispatcher = system.actorOf(Props[AchievementDispatcher])
+  val dispatcher = Akka.system.actorOf(Props[AchievementDispatcher])
 
   def hits: JSONCollection = db.collection[JSONCollection]("hits")
   def misses: JSONCollection = db.collection[JSONCollection]("misses")
