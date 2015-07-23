@@ -1,6 +1,6 @@
 package achievements
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Props, ActorRef, Actor}
 
 sealed trait Result {
   val shooter: String
@@ -11,6 +11,8 @@ case class Print(shooter: String)
 case class Boom(shooter: String)
 
 class AchievementDispatcher extends Actor {
+
+  val achievementCommunicator = context.actorOf(Props[AchievementCommunicator])
 
   var actors = Map.empty[String, ActorRef]
 
@@ -30,7 +32,7 @@ class AchievementDispatcher extends Actor {
     if(actors.contains(shooter))
       actors(shooter)
     else {
-      val actor = context.actorOf(PersonalAchievementActor.props(shooter))
+      val actor = context.actorOf(PersonalAchievementActor.props(shooter, achievementCommunicator))
       actors = actors + (shooter -> actor)
       actor
     }

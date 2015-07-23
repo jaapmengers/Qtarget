@@ -23,5 +23,6 @@ libraryDependencies ++= Seq(
   "org.julienrf" %% "play-json-variants" % "2.0",
   "com.github.nscala-time" %% "nscala-time" % "1.8.0",
   "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.10",
-  "com.github.ironfish" %% "akka-persistence-mongo-casbah"  % "0.7.5" % "compile"
+  "com.github.ironfish" %% "akka-persistence-mongo-casbah"  % "0.7.5" % "compile",
+  "io.reactivex" %% "rxscala" % "0.25.0"
 )
