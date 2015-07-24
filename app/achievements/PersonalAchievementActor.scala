@@ -44,14 +44,35 @@ class PersonalAchievementActor(shooterName: String, achievementCommunicator: Act
     results.onNext(res)
   }
 
-  override def receiveRecover: Receive = {
-    case res: Result => {
-      updateState(res)
+  def getStats: StatsResponse = {
+    val curResults = results.getValues
+
+    val hits = curResults.count {
+      case x: Hit => true
     }
+
+    val misses = curResults.count {
+      case x: Miss => true
+    }
+
+    val bestTime = curResults.collect {
+      case x: Hit => x.time
+    }
+
+    val res = StatsResponse(if(bestTime.isEmpty) 0 else bestTime.min, hits, misses)
+
+    println(s"Sending statsResponse $res")
+
+    res
+  }
+
+  override def receiveRecover: Receive = {
+    case res: Result => updateState(res)
   }
 
   override def receiveCommand: Receive = {
     case res: Result => persist(res)(updateState)
+    case r: ForwardedStatsRequest => r.sender ! getStats
   }
 
   override def persistenceId: String = shooterName

@@ -2,6 +2,7 @@ package controllers
 
 import achievements._
 import akka.actor.{Props, ActorSystem}
+import akka.util.Timeout
 import models.{Models, ViewModels}
 import org.joda.time.DateTime
 import play.api.libs.concurrent.Akka
@@ -25,10 +26,12 @@ import play.api.Play.current
 import scala.concurrent.ExecutionContext.Implicits.global
 import models.ViewModelFormats._
 import models.ModelFormats._
+import akka.pattern.ask
 
 object TargetResults extends Controller with MongoController {
 
   implicit val timeout = 10.seconds
+  implicit val akka_timeout = Timeout(20 seconds)
 
   val dispatcher = Akka.system.actorOf(Props[AchievementDispatcher])
 
@@ -69,17 +72,16 @@ object TargetResults extends Controller with MongoController {
 
     def pad(s1: String, s2: String) = s1.padTo(50, " ").mkString + s2
 
-    text.stripPrefix("@").trim match {
+    text.trim match {
       case "" => Future.successful(BadRequest("Geef een naam mee"))
-      case n: String => for {
-        h <- hits.find(BSONDocument("shooter" -> n)).cursor[Models.Hit](ReadPreference.primary).collect[List]()
-        m <- misses.count(selector = Some(Json.obj("shooter" -> n)))
-        bestTime = pad("Best time:", if(h.length < 1) "n/a" else msToS(h.map(_.time).min) + "s")
-        hits = pad("Hits:", h.length.toString)
-        misses = pad("Misses:", m.toString)
+      case shooter: String => for {
+        x <- (dispatcher ? StatsRequest(shooter)).mapTo[StatsResponse]
+        bestTime = pad("Best time:", if(x.bestTime == 0) "n/a" else msToS(x.bestTime) + "s")
+        hits = pad("Hits:", x.hits.toString)
+        misses = pad("Misses:", x.misses.toString)
       } yield Ok(
         s"""```
-           |Stats for $n
+           |Stats for $shooter
            |$bestTime
            |$hits
            |$misses
