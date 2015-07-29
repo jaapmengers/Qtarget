@@ -30,13 +30,9 @@ import akka.pattern.ask
 
 object TargetResults extends Controller with MongoController {
 
-  implicit val timeout = 10.seconds
   implicit val akka_timeout = Timeout(20 seconds)
 
   val dispatcher = Akka.system.actorOf(Props[AchievementDispatcher])
-
-  def hits: JSONCollection = db.collection[JSONCollection]("hits")
-  def misses: JSONCollection = db.collection[JSONCollection]("misses")
 
   def up(channel_name: String, user_id: String, user_name: String, text: String) = Action.async { implicit request =>
 
@@ -91,23 +87,18 @@ object TargetResults extends Controller with MongoController {
   }
 
   def ranking = Action.async { implicit request =>
-    def makeResult(t: (Models.Hit, Int)) = {
+    def makeResult(t: (PersonalRecord, Int)) = {
       s"${t._2 + 1}. ${t._1.shooter}".padTo(50, " ").mkString + s"${msToS(t._1.time)}s"
     }
 
     for {
-      h <- hits
-            .genericQueryBuilder
-            .cursor[Models.Hit](ReadPreference.primary)
-            .collect[List]()
-      grouped = h
-        .groupBy(_.shooter)
-        .map(_._2.minBy(_.time))
-        .toList.sortBy(_.time)
-    } yield Ok(s"""```
-        |Current ranking
-        |${grouped.zipWithIndex.map(makeResult).mkString(s"\n")}
-        |```""".stripMargin)
+      results <- (dispatcher ? RankingRequest).mapTo[List[PersonalRecord]]
+    } yield Ok(
+      s"""```
+         |Current ranking
+         |${results.zipWithIndex.map(makeResult).mkString(s"\n")}
+         |```
+       """.stripMargin)
   }
 
   def ping = Action { implicit request =>
@@ -120,28 +111,18 @@ object TargetResults extends Controller with MongoController {
     Ok
   }
 
-  def hit = Action.async(BodyParsers.parse.json) { implicit request =>
-    val v = (request.body).as[ViewModels.Hit]
-
-    dispatcher ! achievements.Hit(v.shooter, v.time)
-
-    val shooter = if(v.shooter == "") v.triggeredBy else v.shooter
-
-    for {
-      x <- hits.insert(Models.Hit(BSONObjectID.generate, v.triggeredBy, shooter.stripPrefix("@"), v.timeout, v.time, DateTime.now))
-    } yield Ok
+  def hit = Action(BodyParsers.parse.json) { implicit request =>
+    val v = request.body.as[ViewModels.Hit]
+    val shooter = if (v.shooter == "") v.triggeredBy else v.shooter
+    dispatcher ! achievements.Hit(shooter.stripPrefix("@"), v.time, DateTime.now())
+    Ok
   }
 
-  def miss = Action.async(BodyParsers.parse.json) { implicit request =>
-    val v = (request.body).as[ViewModels.Miss]
-
-    dispatcher ! achievements.Miss(v.shooter)
-
-    val shooter = if(v.shooter == "") v.triggeredBy else v.shooter
-
-    for {
-      x <- misses.insert(Models.Miss(BSONObjectID.generate, v.triggeredBy, shooter.stripPrefix("@"), v.timeout, DateTime.now))
-    } yield Ok
+  def miss = Action(BodyParsers.parse.json) { implicit request =>
+    val v = request.body.as[ViewModels.Miss]
+    val shooter = if (v.shooter == "") v.triggeredBy else v.shooter
+    dispatcher ! achievements.Miss(shooter.stripPrefix("@"), DateTime.now())
+    Ok
   }
 
 }

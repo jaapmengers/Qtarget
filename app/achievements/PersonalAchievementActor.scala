@@ -5,14 +5,16 @@ import akka.persistence.{SnapshotOffer, PersistentActor}
 import rx.lang.scala.{Observer, Subject}
 
 object PersonalAchievementActor {
-  def props(shooterName: String, achievementCommunicator: ActorRef): Props = Props(new PersonalAchievementActor(shooterName, achievementCommunicator))
+  def props(shooterName: String, achievementCommunicator: ActorRef, overallAchievementActor: ActorRef): Props = Props(new PersonalAchievementActor(shooterName, achievementCommunicator, overallAchievementActor))
 }
 
 case class Achievement(shooter: String, achievement: String)
+case class ShooterState(hits: List[Hit], misses: List[Miss])
 
-class PersonalAchievementActor(shooterName: String, achievementCommunicator: ActorRef) extends PersistentActor {
+class PersonalAchievementActor(shooterName: String, achievementCommunicator: ActorRef, overallAchievementActor: ActorRef) extends PersistentActor {
 
   val results = Subject[Result]
+  var state = ShooterState(Nil, Nil)
 
   results.filter {
     case x: Hit => true
@@ -42,28 +44,15 @@ class PersonalAchievementActor(shooterName: String, achievementCommunicator: Act
 
   def updateState(res: Result): Unit = {
     results.onNext(res)
+    res match {
+      case h: Hit => state = state.copy(hits = h :: state.hits)
+      case m: Miss => state = state.copy(misses = m :: state.misses)
+    }
   }
 
   def getStats: StatsResponse = {
-    val curResults = results.getValues
-
-    val hits = curResults.count {
-      case x: Hit => true
-    }
-
-    val misses = curResults.count {
-      case x: Miss => true
-    }
-
-    val bestTime = curResults.collect {
-      case x: Hit => x.time
-    }
-
-    val res = StatsResponse(if(bestTime.isEmpty) 0 else bestTime.min, hits, misses)
-
-    println(s"Sending statsResponse $res")
-
-    res
+    val bestTime = if(state.hits.isEmpty) 0 else state.hits.map(_.time).min
+    StatsResponse(bestTime, state.hits.length, state.misses.length)
   }
 
   override def receiveRecover: Receive = {
@@ -71,7 +60,17 @@ class PersonalAchievementActor(shooterName: String, achievementCommunicator: Act
   }
 
   override def receiveCommand: Receive = {
-    case res: Result => persist(res)(updateState)
+    case res: Result => persist(res){ x =>
+      val curTimeOption = if(state.hits.isEmpty) None else Some(state.hits.map(_.time).min)
+
+      (curTimeOption, x) match {
+        case (None, h: Hit) => overallAchievementActor ! PersonalRecord(shooterName, h.time)
+        case (Some(c: Long), h: Hit) if h.time < c => overallAchievementActor ! PersonalRecord(shooterName, h.time)
+        case _ => println(s"Doing nothing $curTimeOption $x")
+      }
+
+      updateState(x)
+    }
     case r: ForwardedStatsRequest => r.sender ! getStats
   }
 
