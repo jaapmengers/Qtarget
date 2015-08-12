@@ -1,17 +1,17 @@
 package achievements
 
-import akka.actor.{ActorRef, Props}
-import akka.persistence.{SnapshotOffer, PersistentActor}
+import akka.actor.{Actor, ActorRef, Props}
 import rx.lang.scala.{Observer, Subject}
 
 object PersonalAchievementActor {
-  def props(shooterName: String, achievementCommunicator: ActorRef, overallAchievementActor: ActorRef): Props = Props(new PersonalAchievementActor(shooterName, achievementCommunicator, overallAchievementActor))
+  def props(shooterName: String, achievementCommunicator: ActorRef): Props = Props(new PersonalAchievementActor(shooterName, achievementCommunicator))
 }
 
 case class Achievement(shooter: String, achievement: String)
 case class ShooterState(hits: List[Hit], misses: List[Miss])
+case class ResultsSnapshot(results: List[Result])
 
-class PersonalAchievementActor(shooterName: String, achievementCommunicator: ActorRef, overallAchievementActor: ActorRef) extends PersistentActor {
+class PersonalAchievementActor(shooterName: String, achievementCommunicator: ActorRef) extends Actor {
 
   val results = Subject[Result]
   var state = ShooterState(Nil, Nil)
@@ -55,24 +55,9 @@ class PersonalAchievementActor(shooterName: String, achievementCommunicator: Act
     StatsResponse(bestTime, state.hits.length, state.misses.length)
   }
 
-  override def receiveRecover: Receive = {
+  override def receive: Receive = {
+    case snapShot: ResultsSnapshot => snapShot.results.foreach(updateState)
     case res: Result => updateState(res)
-  }
-
-  override def receiveCommand: Receive = {
-    case res: Result => persist(res){ x =>
-      val curTimeOption = if(state.hits.isEmpty) None else Some(state.hits.map(_.time).min)
-
-      (curTimeOption, x) match {
-        case (None, h: Hit) => overallAchievementActor ! PersonalRecord(shooterName, h.time)
-        case (Some(c: Long), h: Hit) if h.time < c => overallAchievementActor ! PersonalRecord(shooterName, h.time)
-        case _ => println(s"Doing nothing $curTimeOption $x")
-      }
-
-      updateState(x)
-    }
     case r: ForwardedStatsRequest => r.sender ! getStats
   }
-
-  override def persistenceId: String = shooterName
 }

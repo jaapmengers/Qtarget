@@ -87,16 +87,16 @@ object TargetResults extends Controller {
   }
 
   def ranking = Action.async { implicit request =>
-    def makeResult(t: (PersonalRecord, Int)) = {
-      s"${t._2 + 1}. ${t._1.shooter}".padTo(50, " ").mkString + s"${msToS(t._1.time)}s"
+    def makeResult(t: ((String, Long), Int)) = {
+      s"${t._2 + 1}. ${t._1._1}".padTo(50, " ").mkString + s"${msToS(t._1._2)}s"
     }
 
     for {
-      results <- (dispatcher ? RankingRequest).mapTo[List[PersonalRecord]]
+      resp <- (dispatcher ? RankingRequest).mapTo[RankingResponse]
     } yield Ok(
       s"""```
          |Current ranking
-         |${results.zipWithIndex.map(makeResult).mkString(s"\n")}
+         |${resp.ranking.zipWithIndex.map(makeResult).mkString(s"\n")}
          |```
        """.stripMargin)
   }
