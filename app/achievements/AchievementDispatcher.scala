@@ -36,8 +36,6 @@ class AchievementDispatcher extends PersistentActor {
       RankingResponse(results.sortBy(_.time).map(r => r.shooter -> r.time).toMap)
     }
 
-    println(s"allResults: $allResults")
-
     allResults.collect {case h: Hit => h} match {
       case Nil => RankingResponse(Map.empty)
       case l => calculateRanking(l)
@@ -45,6 +43,7 @@ class AchievementDispatcher extends PersistentActor {
   }
 
   def getActor(shooter: String): ActorRef = {
+
     if(actors.contains(shooter))
       actors(shooter)
     else {
@@ -62,9 +61,8 @@ class AchievementDispatcher extends PersistentActor {
   }
   override def receiveCommand: Receive = {
     case res: Result => persist(res) { x =>
-      println(x)
-      allResults = allResults :+ x
       getActor(res.shooter) ! x
+      allResults = allResults :+ x
     }
     case sr: StatsRequest => getActor(sr.shooter) ! ForwardedStatsRequest(sender())
     case RankingRequest => sender() ! getRanking
