@@ -28,7 +28,7 @@ class PersonalAchievementActor(shooterName: String, achievementCommunicator: Act
 
   results.tumbling(5).subscribe { x =>
     x.collect {
-      case x: Hit =>x
+      case x: Hit => x
     }.length.subscribe { x =>
       if(x == 5)
         achievementCommunicator ! Achievement(shooterName, "5 consecutive hits!")

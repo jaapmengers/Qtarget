@@ -28,7 +28,7 @@ import models.ViewModelFormats._
 import models.ModelFormats._
 import akka.pattern.ask
 
-object TargetResults extends Controller with MongoController {
+object TargetResults extends Controller {
 
   implicit val akka_timeout = Timeout(20 seconds)
 
@@ -99,16 +99,6 @@ object TargetResults extends Controller with MongoController {
          |${results.zipWithIndex.map(makeResult).mkString(s"\n")}
          |```
        """.stripMargin)
-  }
-
-  def ping = Action { implicit request =>
-    dispatcher ! Print("@jaapm")
-    Ok
-  }
-
-  def boom = Action { implicit request =>
-    dispatcher ! Boom("@jaapm")
-    Ok
   }
 
   def hit = Action(BodyParsers.parse.json) { implicit request =>
