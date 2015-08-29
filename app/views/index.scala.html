@@ -1,0 +1,20 @@
+@()(implicit request: RequestHeader)
+
+<!DOCTYPE html>
+<html lang="en">
+  <meta charset="UTF-8">
+  <title></title>
+  <script src="https://fb.me/JSXTransformer-0.13.3.js"></script>
+  <script src="https://fb.me/react-0.13.3.js"></script>
+  <script src="@routes.Assets.at("javascripts/script.js")"></script>
+</head>
+<body>
+  <div id="main">
+
+  </div>
+  <script src="@routes.Assets.at("javascripts/main.js")"></script>
+  <script>
+    init("@routes.BrowserTarget.socket().webSocketURL()")
+  </script>
+</body>
+</html>
