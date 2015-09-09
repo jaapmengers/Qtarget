@@ -1,0 +1,88 @@
+function hit(data)
+{
+    server.log("Sending hit!")
+    payload <- "{\"text\": \"Geraakt door " + data.shooter + " in " + format("%.2f", data.time.tofloat() / 1000) + "s!\"}"
+    HttpPostWrapper("https://hooks.slack.com/services/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", {}, payload)
+    
+    local body = http.jsonencode(data);
+    local headers = { "Content-Type": "application/json" };
+    
+    HttpPostWrapper("http://qtarget.q42.nl/api/hit", headers, body);
+    
+    http.put("http://hue.q020.nl/api/christiaan/groups/2/action", {}, "{\"alert\":\"select\"}").sendsync();
+}
+
+function miss(data)
+{
+    server.log("Sending miss!")
+    payload <- "{\"text\": \"Niet geraakt binnen " + data.timeout + "s. " + data.shooter + " you N00b!\"}"
+    HttpPostWrapper("https://hooks.slack.com/services/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", {}, payload)
+    
+    local body = http.jsonencode(data);
+    local headers = { "Content-Type": "application/json" };
+    
+    HttpPostWrapper("http://qtarget.q42.nl/api/miss", headers, body);
+}
+
+function HttpPostWrapper (url, headers, string) {
+    local request = http.post(url, headers, string);
+    local response = request.sendsync();
+    return response;
+}
+
+function logUp(shooter, username)
+{
+    
+    
+    local payload = "{\"text\": \"Target getriggerd voor " + shooter + " door " + username + "!\"}"
+    HttpPostWrapper("https://hooks.slack.com/services/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", {}, payload)
+}
+
+function retrieveArguments(input, username){
+    res <- split(input, " ")
+    
+    isNumber <- regexp("^\\d*$")
+    if(res.len() == 1){
+        if(isNumber.match(input))
+        {
+            return {timeout = input.tointeger(), shooter = username};    
+        } else {
+            return {timeout = 10, shooter = input};   
+        }
+    } else if(res.len() == 2)
+    {
+        if(isNumber.match(res[0])){
+            return {timeout = res[0].tointeger(), shooter = res[1], triggeredBy = username};    
+        } else if(isNumber.match(res[1])){
+            return {timeout = res[1].tointeger(), shooter = res[0], triggeredBy = username};   
+        }
+    }
+    
+    return {timeout = 10, shooter = username, triggeredBy = username};   
+}
+
+
+function requestHandler(request, response) {
+    
+    server.log(request.body);
+    local params = http.jsondecode(request.body)
+    
+    if(params.timeout > 300 || params.timeout < 1){
+        response.send(500, "NIET OK! Maar serieus, 5 min. max, aight?")
+    } else {
+        if (request.path == "/up") {
+            logUp(params.shooter, params.triggeredBy)
+            device.send("up", params);
+        }
+        response.send(200, "OK");
+    }
+}
+ 
+// your agent code should only ever have ONE http.onrequest call.
+http.onrequest(requestHandler);
+
+
+server.log(http.agenturl())
+
+device.on("hit", hit);
+device.on("miss", miss);
