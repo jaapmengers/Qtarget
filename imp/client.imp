@@ -1,114 +1,118 @@
-const SERVO_MIN = 0.0415;
-const SERVO_MAX = 0.089;
-const HIT_TRESHOLD = 750;
+const SERVO_MIN = 0.025;
+const SERVO_MAX = 0.067;
 
-// Create global variable for the pin to which the servo is connected
-// then configure the pin for PWM
-servo <- hardware.pin7;
-transistor <- hardware.pin9;
+
+previous <- 999999999;
+
+upLocation <- 999999999;
+
+servo <- hardware.pin1;
+pot <- hardware.pin9;
+
+loggingEnabled <- false;
+
 servo.configure(PWM_OUT, 0.02, SERVO_MIN);
-transistor.configure(DIGITAL_OUT);
 
-button <- hardware.pin1;
-globalState <- 0;
+// Configure the pin for analog input
+pot.configure(ANALOG_IN);
 
-// ===========================
+function hit()
+{
+    local timeDiff = hardware.millis() - initTime;
+    
+    log("Was hit " + timeDiff);
+    setDown();
+    
+    imp.cancelwakeup(upTimeout);
+    
+    local resultObj = clone(currentArgs);
+    resultObj.time <- timeDiff
+    
+    agent.send("hit", resultObj);   
+}
+
+
+function poll() {
+ 
+    local current = pot.read();
+    
+    local percentage = calcPercentage(current, upLocation);
+    
+    log("Percentage " + percentage);
+    
+    if(percentage > 0.8){
+        log("Hit!");
+        hit();
+    } else {
+        pollTimeout <- imp.wakeup(0.05, poll);   
+    }
+}
+
+function pollUp()
+{
+    local current = pot.read();
+    
+    log("Current " + current);
+    log("Previous " + previous);
+    
+    local percentage = calcPercentage(current, previous);
+    
+    log("Percentage " + percentage);
+    
+    if(percentage < 2){
+        log("We are up! " + current);
+        upLocation = current;
+        poll();
+    } else {
+        log("Not up yet");
+        previous <- current;
+        imp.wakeup(0.1, pollUp);
+    }
+}
+
+function setDown() {
+    if(pollTimeout){
+        imp.cancelwakeup(pollTimeout);
+    }
+    servo.write(SERVO_MIN);
+}
+
+function setUp()
+{
+    log("Setting up");
+    servo.write(SERVO_MAX);
+    
+    pollUp();
+}
+
+function miss()
+{
+    setDown();
+    agent.send("miss", currentArgs)   
+}
+
+
 function up(args)
 {
     currentArgs <- args
     
     setUp();
-    listen();
     initTime <- hardware.millis();
     
     upTimeout <- imp.wakeup(currentArgs.timeout, miss);
 }
 
-function setUp()
-{
-    server.log("Setting up");
-    servo.write(SERVO_MAX);
+
+function log(val){
+    if(loggingEnabled){
+        server.log(val);   
+    }
+}
+
+function calcPercentage(val1, val2){
+    local diff = math.abs(val1 - val2);
+    
+    return (diff.tofloat() / val1.tofloat()) * 100;
 }
 
 agent.on("up", up);
-
-// ===========================
-
-function hit()
-{
-    server.log("Hit()");
-    local timeDiff = hardware.millis() - initTime;
-    
-    server.log(timeDiff);
-    
-    if(timeDiff > HIT_TRESHOLD){
-        server.log("Was hit");
-        setDown();
-        
-        imp.cancelwakeup(upTimeout);
-        
-        local resultObj = clone(currentArgs);
-        resultObj.time <- timeDiff
-        
-        agent.send("hit", resultObj);   
-    }
-}
-
-function miss()
-{
-    ignore();
-    setDown();
-    agent.send("miss", currentArgs)   
-}
-
-function setDown()
-{
-    globalState = 0;
-    server.log("Setting down");
-    servo.write(SERVO_MIN);
-}
-
-// ===========================
-
-function buttonPress() 
-{
-    local state = button.read()
-    previousState <- globalState
-    if (state == 1) 
-    {
-        globalState = 1
-    } 
-    else 
-    {
-        globalState = 0
-    }
-    
-    
-    if(globalState != previousState){
-        if(globalState == 1){
-            cancellable <- imp.wakeup(0.01, hit)  
-        } else {
-            imp.cancelwakeup(cancellable)
-        }
-    }   
-}
-
-function ignoreButtonPress()
-{
-    
-}
-
-// ===========================
-
-function listen()
-{
-    button.configure(DIGITAL_IN_PULLUP, buttonPress);    
-}
-
-function ignore()
-{
-    button.configure(DIGITAL_IN_PULLUP, ignoreButtonPress);    
-}
-
-// ===========================
-
