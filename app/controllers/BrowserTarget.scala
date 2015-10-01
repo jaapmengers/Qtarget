@@ -124,9 +124,7 @@ object OrchestrationActor {
 class CommunicationActor(targets: Map[String, ActorRef]) extends Actor {
   override def receive: Receive = {
     case ForwardedMessage(actorName, result) =>
-      for {
-        target <- targets.get(actorName)
-      } yield target ! result
+      targets.get(actorName).foreach(_ ! result)
     case SetUp(actorName) =>
       println(s"Searching for actor $actorName")
       targets.get(actorName).foreach(_ forward Up)
