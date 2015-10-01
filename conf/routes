@@ -3,11 +3,9 @@
 # ~~~~
 
 GET         /                controllers.BrowserTarget.index
-GET         /up              controllers.BrowserTarget.up
+GET         /start           controllers.BrowserTarget.start
 POST        /api/hit         controllers.BrowserTarget.hit
 POST        /api/miss        controllers.BrowserTarget.miss
-# GET         /api/ranking     controllers.TargetResults.ranking
-# GET         /api/stats       controllers.TargetResults.stats(text)
 
 GET         /assets/*file    controllers.Assets.at(path="/public", file)
 GET         /webjars/*file   controllers.WebJarAssets.at(file)
