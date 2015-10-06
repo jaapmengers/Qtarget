@@ -67,7 +67,6 @@ object BrowserTarget extends Controller {
   def hit(id: String) = Action(BodyParsers.parse.json) { implicit request =>
     val v = request.body.as[Hit]
 
-    // Todo, this should be dynamic based on the code of the sending imp
     ca ! ForwardedMessage(id, v)
     Ok
   }
@@ -81,6 +80,7 @@ object BrowserTarget extends Controller {
 class OrchestrationActor(targets: List[String], communicationActor: ActorRef) extends Actor {
 
   import Settings._
+  import context._
 
   var currentTargets: List[String] = Nil
   var currentResults: List[Result] = Nil
@@ -92,17 +92,23 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
         currentResults = Nil
         currentSender = Some(sender())
         currentTargets = sendNext(targets)
+        become(inProgress)
       } else {
         done(currentResults)
       }
+  }
 
+  def inProgress: Receive = {
     case res: Result =>
       currentResults = currentResults :+ res
 
-      if(currentTargets.isEmpty)
+      if(currentTargets.isEmpty) {
         done(currentResults)
+        become(receive)
+      }
       else
         currentTargets = sendNext(currentTargets)
+
   }
 
   def done(results: List[Result]) = {
@@ -136,19 +142,25 @@ object CommunicationActor {
 
 class TargetActor(targetid: String) extends Actor {
 
+  import context._
+
   var originalSender: Option[ActorRef] = None
 
   override def receive: Receive = {
     case Up =>
       println("Setting actor up")
       originalSender = Some(sender())
-      for { x <-  WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get() } yield ()
-    case result: Result => originalSender match {
-      case Some(s: ActorRef) => {
-        println(s"Sending result $result to orchestrationactor $s")
-        s ! result
-      }
-      case _ => //
+
+      WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
+      println("Becoming isUp")
+      become(isUp)
+  }
+
+  def isUp: Receive = {
+    case result: Result => originalSender.foreach { s =>
+      println(s"Sending result $result to orchestrationactor $s")
+      s ! result
+      become(receive)
     }
   }
 }
