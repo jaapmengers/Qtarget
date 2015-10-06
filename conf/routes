@@ -4,8 +4,8 @@
 
 GET         /                controllers.BrowserTarget.index
 GET         /start           controllers.BrowserTarget.start
-POST        /api/hit         controllers.BrowserTarget.hit
-POST        /api/miss        controllers.BrowserTarget.miss
+POST        /api/hit         controllers.BrowserTarget.hit(id: String)
+POST        /api/miss        controllers.BrowserTarget.miss(id: String)
 
 GET         /assets/*file    controllers.Assets.at(path="/public", file)
 GET         /webjars/*file   controllers.WebJarAssets.at(file)

@@ -44,9 +44,8 @@ object BrowserTarget extends Controller {
 
 
   val targets = Map(
-    "een" ->  Akka.system.actorOf(TargetActor.props("77Voox93zEaE")),
-    "twee" ->  Akka.system.actorOf(TargetActor.props("77Voox93zEaE")),
-    "drie" ->  Akka.system.actorOf(TargetActor.props("77Voox93zEaE"))
+    "77Voox93zEaE" ->  Akka.system.actorOf(TargetActor.props("77Voox93zEaE")),
+    "Cn2ir4ebkp5f" ->  Akka.system.actorOf(TargetActor.props("Cn2ir4ebkp5f"))
   )
 
   val ca = Akka.system.actorOf(CommunicationActor.props(targets))
@@ -65,16 +64,16 @@ object BrowserTarget extends Controller {
     }
   }
 
-  def hit = Action(BodyParsers.parse.json) { implicit request =>
+  def hit(id: String) = Action(BodyParsers.parse.json) { implicit request =>
     val v = request.body.as[Hit]
 
     // Todo, this should be dynamic based on the code of the sending imp
-    ca ! ForwardedMessage("een", v)
+    ca ! ForwardedMessage(id, v)
     Ok
   }
 
-  def miss = Action { implicit request =>
-    ca ! ForwardedMessage("een", Miss)
+  def miss(id: String) = Action { implicit request =>
+    ca ! ForwardedMessage(id, Miss)
     Ok
   }
 }
