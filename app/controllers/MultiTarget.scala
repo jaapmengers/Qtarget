@@ -37,16 +37,13 @@ object Settings {
   implicit val timeout = Timeout(5 minutes)
 }
 
-object BrowserTarget extends Controller {
+object MultiTarget extends Controller {
 
   import ViewModelFormats._
   import Settings._
 
-
-  val targets = Map(
-    "77Voox93zEaE" ->  Akka.system.actorOf(TargetActor.props("77Voox93zEaE")),
-    "Cn2ir4ebkp5f" ->  Akka.system.actorOf(TargetActor.props("Cn2ir4ebkp5f"))
-  )
+  val targetIds = List("77Voox93zEaE", "Cn2ir4ebkp5f")
+  val targets = targetIds.map(x => x -> Akka.system.actorOf(TargetActor.props(x))).toMap
 
   val ca = Akka.system.actorOf(CommunicationActor.props(targets))
   val oa = Akka.system.actorOf(OrchestrationActor.props(targets.keys.toList, ca))
@@ -60,7 +57,7 @@ object BrowserTarget extends Controller {
       results <- (oa ? Start).mapTo[List[Result]]
     } yield {
       println(s"Results: $results")
-      Redirect(routes.BrowserTarget.index)
+      Redirect(routes.MultiTarget.index)
     }
   }
 
