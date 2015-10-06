@@ -15,7 +15,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
-
+import scala.util.Random
 
 object ViewModelFormats {
   import play.api.libs.json.Json
@@ -32,6 +32,8 @@ case object Start
 
 case class ForwardedMessage(actorName: String, result: Result)
 case class SetUp(actorName: String)
+
+case object TimeUp
 
 object Settings {
   implicit val timeout = Timeout(5 minutes)
@@ -84,15 +86,51 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
   var currentSender: Option[ActorRef] = None
 
   override def receive: Receive = {
-    case Start =>
-      if(targets.nonEmpty) {
-        currentResults = Nil
-        currentSender = Some(sender())
-        currentTargets = sendNext(targets)
-        become(inProgress)
-      } else {
-        done(currentResults)
-      }
+    case Start => startTimeBound(sender())
+  }
+
+  def startSequential(sender: ActorRef): Unit = {
+    if(targets.nonEmpty) {
+      currentResults = Nil
+      currentSender = Some(sender)
+      currentTargets = sendNext(targets)
+      become(inProgress)
+    } else
+      done(currentResults)
+  }
+
+  def startTimeBound(sender: ActorRef): Unit = {
+    if(targets.nonEmpty){
+      currentResults = Nil
+      currentSender = Some(sender)
+
+      Akka.system.scheduler.scheduleOnce(30 seconds){
+        self ! TimeUp
+      }(Akka.system.dispatcher)
+
+      become(inProgressTimeBound)
+      sendNextTimeBound()
+
+    } else
+      done(currentResults)
+  }
+
+  def inProgressTimeBound: Receive = {
+    case res: Result =>
+      currentResults = currentResults :+ res
+      sendNextTimeBound()
+    case TimeUp => become(timeUp)
+  }
+
+  def timeUp: Receive = {
+    case res: Result =>
+      currentResults = currentResults :+ res
+      done(currentResults)
+  }
+
+  def sendNextTimeBound() = {
+    val shuffled = Random.shuffle(targets)
+    communicationActor ! SetUp(shuffled.head)
   }
 
   def inProgress: Receive = {
@@ -105,11 +143,11 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
       }
       else
         currentTargets = sendNext(currentTargets)
-
   }
 
   def done(results: List[Result]) = {
     currentSender.foreach(x => x ! results)
+    become(receive)
   }
 
   def sendNext(ts: List[String]): List[String] = {
