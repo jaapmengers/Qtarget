@@ -1,21 +1,17 @@
 package controllers
 
-import akka.actor.Actor.Receive
-import akka.pattern.{ ask }
+import akka.pattern.ask
 import akka.actor.{Actor, Props, ActorRef}
 import akka.util.Timeout
 import play.api.libs.concurrent.Akka
-import play.api.libs.json.{Json, JsValue}
-import play.api.libs.ws.WS
 import play.api.mvc._
 import play.api.mvc.Results._
 import play.mvc.Controller
 import play.api.Play.current
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
 import scala.util.Random
+import upickle.default._
 
 object ViewModelFormats {
   import play.api.libs.json.Json
@@ -24,7 +20,8 @@ object ViewModelFormats {
 }
 
 case object Up
-trait Result
+
+sealed trait Result
 case class Hit(time: Long) extends Result
 case object Miss extends Result
 
@@ -42,7 +39,6 @@ object Settings {
 object MultiTarget extends Controller {
 
   import ViewModelFormats._
-  import Settings._
 
   val targetIds = List("77Voox93zEaE", "Cn2ir4ebkp5f")
   val targets = targetIds.map(x => x -> Akka.system.actorOf(TargetActor.props(x))).toMap
@@ -52,15 +48,6 @@ object MultiTarget extends Controller {
 
   def index = Action { implicit request =>
     Ok(views.html.index())
-  }
-
-  def start = Action.async { implicit request =>
-    for {
-      results <- (oa ? Start).mapTo[List[Result]]
-    } yield {
-      println(s"Results: $results")
-      Redirect(routes.MultiTarget.index)
-    }
   }
 
   def hit(id: String) = Action(BodyParsers.parse.json) { implicit request =>
@@ -73,6 +60,30 @@ object MultiTarget extends Controller {
   def miss(id: String) = Action { implicit request =>
     ca ! ForwardedMessage(id, Miss)
     Ok
+  }
+
+  def socket = WebSocket.acceptWithActor[String, String] { request => out =>
+    SocketActor.props(out, oa)
+  }
+}
+
+
+object SocketActor {
+  def props(out: ActorRef, orchestrationActor: ActorRef) = Props(new SocketActor(out, orchestrationActor))
+}
+
+class SocketActor(out: ActorRef, oa: ActorRef) extends Actor {
+  override def receive: Receive = {
+    case "START" =>
+      import Settings._
+
+      for {
+        results <- (oa ? Start).mapTo[List[Result]]
+        js = write(results)
+      } yield {
+        println(s"Results: $js")
+        out ! js
+      }
   }
 }
 
@@ -104,7 +115,7 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
       currentResults = Nil
       currentSender = Some(sender)
 
-      Akka.system.scheduler.scheduleOnce(30 seconds){
+      Akka.system.scheduler.scheduleOnce(5 seconds){
         self ! TimeUp
       }(Akka.system.dispatcher)
 
@@ -186,8 +197,13 @@ class TargetActor(targetid: String) extends Actor {
       println("Setting actor up")
       originalSender = Some(sender())
 
-      WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
+      //WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
       println("Becoming isUp")
+
+      Akka.system.scheduler.scheduleOnce(2 seconds) {
+        self ! Random.shuffle(List(Hit(4200), Miss)).head
+      }(Akka.system.dispatcher)
+
       become(isUp)
   }
 

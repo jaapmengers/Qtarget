@@ -24,5 +24,6 @@ libraryDependencies ++= Seq(
   "com.github.nscala-time" %% "nscala-time" % "1.8.0",
   "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.10",
   "com.github.scullxbones" %% "akka-persistence-mongo-rxmongo" % "0.4.1",
-  "io.reactivex" %% "rxscala" % "0.25.0"
+  "io.reactivex" %% "rxscala" % "0.25.0",
+  "com.lihaoyi" %% "upickle" % "0.3.6"
 )

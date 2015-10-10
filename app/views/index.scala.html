@@ -4,8 +4,35 @@
 <html lang="en">
   <meta charset="UTF-8">
   <title></title>
+  <script>
+
+    start = function()
+    {
+      console.log("Started")
+      ws.send("START");
+    };
+
+    init = function(socketUrl){
+      ws = new WebSocket(socketUrl);
+      ws.onopen = function(){
+          console.log("connected");
+      };
+
+      ws.onmessage = function (evt){
+          console.log("Message " + evt.data);
+      };
+
+      ws.onclose = function(){
+          // websocket is closed.
+          console.error("Connection is closed...");
+      };
+    };
+
+    init("@routes.MultiTarget.socket().webSocketURL()")
+  </script>
 </head>
+
 <body>
-  <a href="/start">Start</a>
+  <button onclick="start()">Start</button>
 </body>
 </html>
