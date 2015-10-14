@@ -4,7 +4,7 @@
 
 POST        /api/hit              controllers.MultiTarget.hit(id: String)
 POST        /api/miss             controllers.MultiTarget.miss(id: String)
-POST        /api/start            controllers.MultiTarget.start(text: String)
+GET         /api/start            controllers.MultiTarget.start(text: String)
 
 GET         /assets/*file         controllers.Assets.at(path="/public", file)
 GET         /webjars/*file        controllers.WebJarAssets.at(file)

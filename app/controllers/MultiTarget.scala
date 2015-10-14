@@ -48,8 +48,14 @@ object MultiTarget extends Controller {
 
 
   def start(text: String) = Action { implicit request =>
-    oa ! Start(text)
-    Ok
+    if(text.isEmpty){
+      println("Hallo?")
+      BadRequest("You forgot your name. E.g. /target John Doe")
+    }
+    else {
+      oa ! Start(text)
+      Ok
+    }
   }
 
   def hit(id: String) = Action(BodyParsers.parse.json) { implicit request =>
