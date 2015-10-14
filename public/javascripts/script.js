@@ -1,20 +1,21 @@
-init = function(socketUrl){
-  console.log(init, socketUrl);
+start = function()
+{
+  console.log("Started")
+  ws.send("START");
+};
 
-  var ws = new WebSocket(socketUrl);
+init = function(socketUrl){
+  ws = new WebSocket(socketUrl);
   ws.onopen = function(){
-      console.log("connected");
-      var iets = JSON.stringify({"text": "Message to send"});
-      ws.send(iets);
+    console.log("connected");
   };
 
   ws.onmessage = function (evt){
-      var received_msg = JSON.parse(evt.data);
-      component.setState({msg: received_msg.text});
+    console.log("Message " + evt.data);
+    component.setState({msg: received_msg.text});
   };
 
   ws.onclose = function(){
-      // websocket is closed.
-      console.error("Connection is closed...");
+    console.error("Connection is closed...");
   };
 };

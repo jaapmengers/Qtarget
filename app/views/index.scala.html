@@ -4,35 +4,18 @@
 <html lang="en">
   <meta charset="UTF-8">
   <title></title>
-  <script>
-
-    start = function()
-    {
-      console.log("Started")
-      ws.send("START");
-    };
-
-    init = function(socketUrl){
-      ws = new WebSocket(socketUrl);
-      ws.onopen = function(){
-          console.log("connected");
-      };
-
-      ws.onmessage = function (evt){
-          console.log("Message " + evt.data);
-      };
-
-      ws.onclose = function(){
-          // websocket is closed.
-          console.error("Connection is closed...");
-      };
-    };
-
-    init("@routes.MultiTarget.socket().webSocketURL()")
-  </script>
+  <script src="https://fb.me/JSXTransformer-0.13.3.js"></script>
+  <script src="https://fb.me/react-0.13.3.js"></script>
+  <script src="@routes.Assets.at("javascripts/script.js")"></script>
+  <script src="@routes.Assets.at("javascripts/main.js")"></script>
 </head>
 
 <body>
-  <button onclick="start()">Start</button>
+  <div id="main"></div>
+
+  <script src="@routes.Assets.at("javascripts/main.js")"></script>
+  <script>
+  </script>
+
 </body>
 </html>

@@ -2,10 +2,9 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-GET         /                     controllers.MultiTarget.index
-GET         /ws                   controllers.MultiTarget.socket
 POST        /api/hit              controllers.MultiTarget.hit(id: String)
 POST        /api/miss             controllers.MultiTarget.miss(id: String)
+POST        /api/start            controllers.MultiTarget.start(text: String)
 
 GET         /assets/*file         controllers.Assets.at(path="/public", file)
 GET         /webjars/*file        controllers.WebJarAssets.at(file)

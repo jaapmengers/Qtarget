@@ -1,18 +1,16 @@
 package controllers
 
-import akka.pattern.ask
 import akka.actor.{Actor, Props, ActorRef}
 import akka.util.Timeout
 import play.api.libs.concurrent.Akka
+import play.api.libs.json.Json
 import play.api.libs.ws.WS
 import play.api.mvc._
 import play.api.mvc.Results._
 import play.mvc.Controller
 import play.api.Play.current
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
-import upickle.default._
 
 object ViewModelFormats {
   import play.api.libs.json.Json
@@ -26,7 +24,7 @@ sealed trait Result
 case class Hit(time: Long) extends Result
 case object Miss extends Result
 
-case object Start
+case class Start(shooter: String)
 
 case class ForwardedMessage(actorName: String, result: Result)
 case class SetUp(actorName: String)
@@ -48,8 +46,10 @@ object MultiTarget extends Controller {
   val ca = Akka.system.actorOf(CommunicationActor.props(targets))
   val oa = Akka.system.actorOf(OrchestrationActor.props(targets.keys.toList, ca))
 
-  def index = Action { implicit request =>
-    Ok(views.html.index())
+
+  def start(text: String) = Action { implicit request =>
+    oa ! Start(text)
+    Ok
   }
 
   def hit(id: String) = Action(BodyParsers.parse.json) { implicit request =>
@@ -63,43 +63,19 @@ object MultiTarget extends Controller {
     ca ! ForwardedMessage(id, Miss)
     Ok
   }
-
-  def socket = WebSocket.acceptWithActor[String, String] { request => out =>
-    SocketActor.props(out, oa)
-  }
-}
-
-
-object SocketActor {
-  def props(out: ActorRef, orchestrationActor: ActorRef) = Props(new SocketActor(out, orchestrationActor))
-}
-
-class SocketActor(out: ActorRef, oa: ActorRef) extends Actor {
-  override def receive: Receive = {
-    case "START" =>
-      import Settings._
-
-      for {
-        results <- (oa ? Start).mapTo[List[Result]]
-        js = write(results)
-      } yield {
-        println(s"Results: $js")
-        out ! js
-      }
-  }
 }
 
 class OrchestrationActor(targets: List[String], communicationActor: ActorRef) extends Actor {
 
-  import Settings._
   import context._
 
   var currentTargets: List[String] = Nil
   var currentResults: List[Result] = Nil
   var currentSender: Option[ActorRef] = None
+  var currentShooter: String = ""
 
   override def receive: Receive = {
-    case Start => startTimeBound(sender())
+    case Start(shooter: String) => startTimeBound(sender(), shooter)
   }
 
   def startSequential(sender: ActorRef): Unit = {
@@ -112,14 +88,17 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
       done(currentResults)
   }
 
-  def startTimeBound(sender: ActorRef): Unit = {
+  def startTimeBound(sender: ActorRef, shooter: String): Unit = {
+
+    currentShooter = shooter
+
     if(targets.nonEmpty){
       currentResults = Nil
       currentSender = Some(sender)
 
-      Akka.system.scheduler.scheduleOnce(30 seconds){
+      Akka.system.scheduler.scheduleOnce(15 seconds){
         self ! TimeUp
-      }(Akka.system.dispatcher)
+      }
 
       become(inProgressTimeBound)
       sendNextTimeBound()
@@ -159,7 +138,22 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
   }
 
   def done(results: List[Result]) = {
-    currentSender.foreach(x => x ! results)
+
+    val hits = results.collect {
+      case x: Hit => x
+    }
+
+    val totalTime = hits.map(_.time).sum.toDouble / 1000D
+
+    val data = Json.obj(
+      "text" -> f"$currentShooter hit ${hits.length} targets in $totalTime%2.2f seconds. Far out!"
+    )
+
+    println("Sending results to slack")
+    for {
+      _ <- WS.url("https://hooks.slack.com/services/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").post(data)
+    } yield ()
+
     become(receive)
   }
 
@@ -199,8 +193,13 @@ class TargetActor(targetid: String) extends Actor {
       println("Setting actor up")
       originalSender = Some(sender())
 
-      WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
-      println("Becoming isUp")
+      //WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
+      //println("Becoming isUp")
+
+      system.scheduler.scheduleOnce(4.2 seconds) {
+        val result: Result = Random.shuffle(List(Hit(4200), Miss)).head
+        self ! result
+      }
 
       become(isUp)
   }
