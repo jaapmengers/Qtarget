@@ -54,7 +54,7 @@ object MultiTarget extends Controller {
     }
     else {
       oa ! Start(text)
-      Ok
+      Ok("Ok!")
     }
   }
 
@@ -102,7 +102,7 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
       currentResults = Nil
       currentSender = Some(sender)
 
-      Akka.system.scheduler.scheduleOnce(15 seconds){
+      Akka.system.scheduler.scheduleOnce(30 seconds){
         self ! TimeUp
       }
 
@@ -199,13 +199,13 @@ class TargetActor(targetid: String) extends Actor {
       println("Setting actor up")
       originalSender = Some(sender())
 
-      //WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
-      //println("Becoming isUp")
-
-      system.scheduler.scheduleOnce(4.2 seconds) {
-        val result: Result = Random.shuffle(List(Hit(4200), Miss)).head
-        self ! result
-      }
+      WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
+      println("Becoming isUp")
+//
+//      system.scheduler.scheduleOnce(4.2 seconds) {
+//        val result: Result = Random.shuffle(List(Hit(4200), Miss)).head
+//        self ! result
+//      }
 
       become(isUp)
   }
