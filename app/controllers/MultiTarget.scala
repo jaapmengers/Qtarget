@@ -4,6 +4,7 @@ import akka.pattern.ask
 import akka.actor.{Actor, Props, ActorRef}
 import akka.util.Timeout
 import play.api.libs.concurrent.Akka
+import play.api.libs.ws.WS
 import play.api.mvc._
 import play.api.mvc.Results._
 import play.mvc.Controller
@@ -40,7 +41,8 @@ object MultiTarget extends Controller {
 
   import ViewModelFormats._
 
-  val targetIds = List("77Voox93zEaE", "Cn2ir4ebkp5f")
+  val targetIds = List("BGIL5EnwW2wn", "KTnx1vmAO8ow", "pwMJfpHSlKDx")
+
   val targets = targetIds.map(x => x -> Akka.system.actorOf(TargetActor.props(x))).toMap
 
   val ca = Akka.system.actorOf(CommunicationActor.props(targets))
@@ -115,7 +117,7 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
       currentResults = Nil
       currentSender = Some(sender)
 
-      Akka.system.scheduler.scheduleOnce(5 seconds){
+      Akka.system.scheduler.scheduleOnce(30 seconds){
         self ! TimeUp
       }(Akka.system.dispatcher)
 
@@ -197,12 +199,8 @@ class TargetActor(targetid: String) extends Actor {
       println("Setting actor up")
       originalSender = Some(sender())
 
-      //WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
+      WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
       println("Becoming isUp")
-
-      Akka.system.scheduler.scheduleOnce(2 seconds) {
-        self ! Random.shuffle(List(Hit(4200), Miss)).head
-      }(Akka.system.dispatcher)
 
       become(isUp)
   }
