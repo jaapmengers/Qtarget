@@ -32,7 +32,7 @@ case class SetUp(actorName: String)
 case object TimeUp
 
 object Settings {
-  implicit val timeout = Timeout(5 minutes)
+  implicit val timeout = Timeout(1 minute)
 }
 
 object MultiTarget extends Controller {
