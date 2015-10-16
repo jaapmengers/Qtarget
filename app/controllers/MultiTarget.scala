@@ -148,7 +148,7 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
     if(hits.isEmpty)
       Json.obj("text" -> f"Yo $currentShooter, sadly you didn't hit anything!")
     else {
-      val quickest = hits.map(_.time).min
+      val quickest = hits.map(_.time).min / 1000d
       Json.obj("text" -> f"Yo $currentShooter, you hit ${hits.length} targets and your quickest response time is $quickest seconds ! Far out!")
     }
   }
