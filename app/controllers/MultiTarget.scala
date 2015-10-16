@@ -1,6 +1,6 @@
 package controllers
 
-import akka.actor.{Actor, Props, ActorRef}
+import akka.actor.{Cancellable, Actor, Props, ActorRef}
 import akka.util.Timeout
 import play.api.libs.concurrent.Akka
 import play.api.libs.json.Json
@@ -193,6 +193,7 @@ class TargetActor(targetid: String) extends Actor {
   import context._
 
   var originalSender: Option[ActorRef] = None
+  var cancellable: Option[Cancellable] = None
 
   override def receive: Receive = {
     case Up =>
@@ -201,18 +202,23 @@ class TargetActor(targetid: String) extends Actor {
 
       WS.url(s"https://agent.electricimp.com/$targetid/up?text=&user_name=jaapm").get()
       println("Becoming isUp")
-//
-//      system.scheduler.scheduleOnce(4.2 seconds) {
-//        val result: Result = Random.shuffle(List(Hit(4200), Miss)).head
-//        self ! result
-//      }
 
+      // Schedule a miss if no result if > 10 seconds have passed and no result is received
+      val c = system.scheduler.scheduleOnce(11 seconds) {
+        self ! Miss
+      }
+
+      cancellable = Some(c)
       become(isUp)
   }
 
   def isUp: Receive = {
     case result: Result => originalSender.foreach { s =>
       println(s"Sending result $result to orchestrationactor $s")
+
+      // Cancel any scheduled misses because we already received a result
+      cancellable.foreach(_.cancel())
+
       s ! result
       become(receive)
     }
