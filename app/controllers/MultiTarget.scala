@@ -39,7 +39,9 @@ object MultiTarget extends Controller {
 
   import ViewModelFormats._
 
-  val targetIds = List("BGIL5EnwW2wn", "KTnx1vmAO8ow", "pwMJfpHSlKDx")
+//  val targetIds = List("BGIL5EnwW2wn", "KTnx1vmAO8ow", "pwMJfpHSlKDx")
+
+  val targetIds = List("BGIL5EnwW2wn", "KTnx1vmAO8ow")
 
   val targets = targetIds.map(x => x -> Akka.system.actorOf(TargetActor.props(x))).toMap
 
