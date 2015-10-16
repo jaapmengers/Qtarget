@@ -3,7 +3,7 @@ package controllers
 import akka.actor.{Cancellable, Actor, Props, ActorRef}
 import akka.util.Timeout
 import play.api.libs.concurrent.Akka
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.libs.ws.WS
 import play.api.mvc._
 import play.api.mvc.Results._
@@ -143,18 +143,18 @@ class OrchestrationActor(targets: List[String], communicationActor: ActorRef) ex
         currentTargets = sendNext(currentTargets)
   }
 
-  def done(results: List[Result]) = {
-
-    val hits = results.collect {
-      case x: Hit => x
+  private def getResultObject(results: List[Result]): JsObject = {
+    val hits = results.collect{case x: Hit => x}
+    if(hits.isEmpty)
+      Json.obj("text" -> f"Yo $currentShooter, sadly you didn't hit anything!")
+    else {
+      val quickest = hits.map(_.time).min
+      Json.obj("text" -> f"Yo $currentShooter, you hit ${hits.length} targets and your quickest response time is $quickest seconds ! Far out!")
     }
+  }
 
-    val totalTime = hits.map(_.time).sum.toDouble / 1000D
-
-    val data = Json.obj(
-      "text" -> f"$currentShooter hit ${hits.length} targets in $totalTime%2.2f seconds. Far out!"
-    )
-
+  def done(results: List[Result]) = {
+    val data = getResultObject(results)
     println("Sending results to slack")
     for {
       _ <- WS.url("https://hooks.slack.com/services/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").post(data)
